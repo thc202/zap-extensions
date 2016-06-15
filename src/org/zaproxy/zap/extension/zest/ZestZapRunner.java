@@ -53,6 +53,7 @@ import org.parosproxy.paros.model.HistoryReference;
 import org.parosproxy.paros.model.Model;
 import org.parosproxy.paros.model.SiteNode;
 import org.parosproxy.paros.network.HttpMessage;
+import org.parosproxy.paros.network.HttpSender;
 import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.extension.alert.ExtensionAlert;
 import org.zaproxy.zap.extension.ascan.ExtensionActiveScan;
@@ -77,6 +78,7 @@ public class ZestZapRunner extends ZestBasicRunner implements ScannerListener {
     private List<Alert> alerts = new ArrayList<Alert>();;
 
 	private ScriptUI scriptUI;
+    private HttpSender httpSender;
     
     /**
      * 
@@ -249,6 +251,24 @@ public class ZestZapRunner extends ZestBasicRunner implements ScannerListener {
 			return null;
 		}
 		return super.runStatement(script, stmt, lastResponse);
+	}
+	
+	@Override
+	public ZestResponse send(ZestRequest request) throws IOException {
+		HttpMessage msg = ZestZapUtils.toHttpMessage(request, null);
+		getHttpSender().sendAndReceive(msg, request.isFollowRedirects());
+		ZestResponse response = ZestZapUtils.toZestResponse(msg);
+		return response;
+	}
+
+	private HttpSender getHttpSender() {
+		if (httpSender == null) {
+			httpSender = new HttpSender(
+					Model.getSingleton().getOptionsParam().getConnectionParam(),
+					true,
+					HttpSender.MANUAL_REQUEST_INITIATOR);
+		}
+		return httpSender;
 	}
 
 	@Override

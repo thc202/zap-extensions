@@ -27,17 +27,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-import org.apache.commons.httpclient.HttpState;
 import org.apache.commons.httpclient.URI;
 import org.apache.commons.httpclient.URIException;
-import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.log4j.Logger;
-import org.mozilla.zest.core.v1.ZestActionFailException;
-import org.mozilla.zest.core.v1.ZestAssertFailException;
 import org.mozilla.zest.core.v1.ZestAssignFailException;
 import org.mozilla.zest.core.v1.ZestAssignment;
-import org.mozilla.zest.core.v1.ZestClientFailException;
-import org.mozilla.zest.core.v1.ZestInvalidCommonTestException;
 import org.mozilla.zest.core.v1.ZestRequest;
 import org.mozilla.zest.core.v1.ZestResponse;
 import org.mozilla.zest.core.v1.ZestScript;
@@ -57,7 +51,6 @@ import org.zaproxy.zap.extension.script.SequenceScript;
 import org.zaproxy.zap.model.StructuralNode;
 import org.zaproxy.zap.model.StructuralSiteNode;
 import org.zaproxy.zap.model.Target;
-import org.zaproxy.zap.users.User;
 
 public class ZestSequenceRunner extends ZestZapRunner implements SequenceScript {
 
@@ -68,6 +61,7 @@ public class ZestSequenceRunner extends ZestZapRunner implements SequenceScript 
 	private ZestResponse tempLastResponse = null;
 	private ExtensionHistory extHistory = null;
 	private ExtensionActiveScan extAscan = null;
+	private HttpSender httpSender;
 
 	/**
 	 * Initialize a ZestSequenceRunner.
@@ -99,6 +93,28 @@ public class ZestSequenceRunner extends ZestZapRunner implements SequenceScript 
 	}
 
 	@Override
+	public ZestResponse send(ZestRequest request) throws IOException {
+		HttpMessage msg = ZestZapUtils.toHttpMessage(request, null);
+		if (currentPlugin != null) {
+			currentPlugin.getParent().getHttpSender().sendAndReceive(msg, request.isFollowRedirects());
+			currentPlugin.getParent().notifyNewMessage(msg);
+		} else {
+			getHttpSender().sendAndReceive(msg, request.isFollowRedirects());
+		}
+		return ZestZapUtils.toZestResponse(msg);
+	}
+
+	private HttpSender getHttpSender() {
+		if (httpSender == null) {
+			httpSender = new HttpSender(
+					Model.getSingleton().getOptionsParam().getConnectionParam(),
+					true,
+					HttpSender.MANUAL_REQUEST_INITIATOR);
+		}
+		return httpSender;
+	}
+
+	@Override
 	public HttpMessage runSequenceBefore(HttpMessage msg, AbstractPlugin plugin) {
 		HttpMessage msgOriginal = msg.cloneAll();
 
@@ -108,9 +124,8 @@ public class ZestSequenceRunner extends ZestZapRunner implements SequenceScript 
 			//prior statements in the script. 
 			HttpMessage msgScript = getMatchingMessageFromScript(msg);
 			ZestScript scr = getBeforeSubScript(msgScript);
-			HttpSender sender = this.currentPlugin.getParent().getHttpSender();
-	
-			runSequenceAuthenticated(sender,msg,scr);
+
+			run(scr, EMPTYPARAMS);
 
 			//Once the script has run, update the message with results from 
 			mergeRequestBodyFromScript(msgOriginal);
@@ -127,38 +142,6 @@ public class ZestSequenceRunner extends ZestZapRunner implements SequenceScript 
 	}
 	
 	
-	/**
-	 * Run the ZestScript sequence while being properly authenticated 
-	 */
-	private void runSequenceAuthenticated(HttpSender sender, HttpMessage msg, ZestScript scr) 
-			throws ZestAssertFailException, ZestActionFailException, IOException, ZestInvalidCommonTestException, ZestAssignFailException, ZestClientFailException {
-		
-		// We must handle the authentication "by hand" as the HttpRunner is not used (direct call to HttpClient)
-		// when executing Zest scripts
-		
-		// Not sure is we do really need to revert to the original value.
-		// Let's say yes for now
-		String originalCookiePolicy = sender.getClient().getParams().getCookiePolicy();
-		HttpState originalState = sender.getClient().getState();
-
-		sender.getClient().getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
-		sender.getClient().getState().clearCookies();
-		
-		User forceUser = sender.getUser(msg);
-		if (forceUser != null) {
-			forceUser.processMessageToMatchUser(msg);
-			sender.getClient().setState(forceUser.getCorrespondingHttpState());	
-		}
-
-		this.setHttpClient(sender.getClient());
-		this.run(scr, EMPTYPARAMS);
-
-		//Restore original values
-		sender.getClient().getParams().setCookiePolicy(originalCookiePolicy);
-		sender.getClient().setState(originalState);
-		
-		
-	}
 
 	private void mergeRequestBodyFromScript(HttpMessage msg)
 	{
@@ -209,12 +192,8 @@ public class ZestSequenceRunner extends ZestZapRunner implements SequenceScript 
 		try	{
 			HttpMessage msgScript = getMatchingMessageFromScript(msg);
 			ZestScript scr = getAfterSubScript(msgScript);
-
-			HttpSender sender = this.currentPlugin.getParent().getHttpSender();
-			runSequenceAuthenticated(sender,msg,scr);
+			run(scr, EMPTYPARAMS);
 		
-			//Clean up redundant cookies
-			sender.getClient().getState().clearCookies();		
 		} catch (Exception e){
 			logger.debug("Error running Sequence script in 'runSequenceAfter' method : " + e.getMessage());
 		}
@@ -229,32 +208,6 @@ public class ZestSequenceRunner extends ZestZapRunner implements SequenceScript 
 		}
 		return false;
 	}	
-
-	@Override
-	public ZestResponse runStatement(ZestScript script, ZestStatement stmt,
-			ZestResponse lastResponse) throws ZestAssertFailException,
-			ZestActionFailException, ZestInvalidCommonTestException,
-			IOException, ZestAssignFailException, ZestClientFailException {
-
-		//This method makes sure each request from a Sequence Script is displayed on the Active Scan results tab.
-		ZestResponse response = null;
-		try {
-			response = super.runStatement(script, stmt, lastResponse);
-		}catch(NullPointerException e) {
-			logger.debug("NullPointerException occurred, while running Sequence Script: " + e.getMessage());
-		}
-
-		try {
-			if (stmt instanceof ZestRequest) {
-				HttpMessage msg = ZestZapUtils.toHttpMessage((ZestRequest)stmt, response);
-				this.currentPlugin.getParent().notifyNewMessage(msg);
-				
-			}
-		} catch(Exception e) {
-			logger.debug("Exception while trying to notify of unscanned message in a sequence.");
-		}
-		return response;
-	}
 
 	@Override
 	public String handleAssignment(ZestScript script, ZestAssignment assign,
@@ -352,13 +305,7 @@ public class ZestSequenceRunner extends ZestZapRunner implements SequenceScript 
 				if(stmt instanceof ZestRequest) {
 					ZestRequest req = (ZestRequest)stmt;
 					HttpMessage msg = ZestZapUtils.toHttpMessage(req, req.getResponse());
-					SiteNode node = Model.getSingleton().getSession().getSiteTree().findNode(msg);
-					if (node == null) {
-						node = messageToSiteNode(msg);
-					}
-					if (node != null) {
-						fakeDirectory.add(node);
-					}
+					fakeDirectory.add(messageToSiteNode(msg));
 				}
 			}
 			catch(Exception e) {
