@@ -21,6 +21,7 @@ package org.zaproxy.addon.network.internal.client;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -32,7 +33,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
@@ -275,7 +275,7 @@ class HttpSenderImplUnitTest {
                     assertThrows(
                             ZapUnknownHostException.class,
                             () -> method.sendWith(httpSender, message));
-            assertThat(exception.getMessage(), startsWith(host));
+            assertThat(exception.getMessage(), containsString(host));
             assertThat(exception.isFromOutgoingProxy(), is(equalTo(false)));
         }
 
@@ -1350,7 +1350,7 @@ class HttpSenderImplUnitTest {
                             () -> httpSender.sendAndReceive(message));
             assertThat(proxy.getReceivedMessages(), hasSize(0));
             assertThat(server.getReceivedMessages(), hasSize(0));
-            assertThat(exception.getMessage(), startsWith(proxyHost));
+            assertThat(exception.getMessage(), containsString(proxyHost));
             assertThat(exception.isFromOutgoingProxy(), is(equalTo(true)));
         }
 

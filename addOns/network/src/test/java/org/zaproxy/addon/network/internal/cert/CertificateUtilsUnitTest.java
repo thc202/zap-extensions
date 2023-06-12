@@ -49,11 +49,12 @@ import org.zaproxy.addon.network.NetworkTestUtils;
 class CertificateUtilsUnitTest {
 
     private static final String CERTIFICATE_PEM =
-            CertificateUtils.BEGIN_CERTIFICATE_TOKEN
-                    + "\n"
-                    + NetworkTestUtils.FISH_CERT_BASE64
-                    + CertificateUtils.END_CERTIFICATE_TOKEN
-                    + "\n";
+            (CertificateUtils.BEGIN_CERTIFICATE_TOKEN
+                            + "\n"
+                            + NetworkTestUtils.FISH_CERT_BASE64
+                            + CertificateUtils.END_CERTIFICATE_TOKEN
+                            + "\n")
+                    .replace("\n", System.lineSeparator());
 
     private static final String CERT_DATA = "Certificate data...";
     private static final String CERT_DATA_BASE64 =

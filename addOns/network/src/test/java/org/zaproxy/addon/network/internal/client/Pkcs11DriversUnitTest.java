@@ -266,18 +266,19 @@ class Pkcs11DriversUnitTest extends TestUtils {
         assertThat(pkcs11Drivers, hasSize(equalTo(2)));
         assertHomeDrivers(
                 containsString(
-                        "    <driver>\n"
-                                + "        <name>1</name>\n"
-                                + "        <path>/path/1</path>\n"
-                                + "        <slot>1</slot>\n"
-                                + "        <slotListIndex>2</slotListIndex>\n"
-                                + "    </driver>\n"
-                                + "    <driver>\n"
-                                + "        <name>2</name>\n"
-                                + "        <path>/path/2</path>\n"
-                                + "        <slot>3</slot>\n"
-                                + "        <slotListIndex>4</slotListIndex>\n"
-                                + "    </driver>"));
+                        ("    <driver>\n"
+                                        + "        <name>1</name>\n"
+                                        + "        <path>/path/1</path>\n"
+                                        + "        <slot>1</slot>\n"
+                                        + "        <slotListIndex>2</slotListIndex>\n"
+                                        + "    </driver>\n"
+                                        + "    <driver>\n"
+                                        + "        <name>2</name>\n"
+                                        + "        <path>/path/2</path>\n"
+                                        + "        <slot>3</slot>\n"
+                                        + "        <slotListIndex>4</slotListIndex>\n"
+                                        + "    </driver>")
+                                .replace("\n", System.lineSeparator())));
     }
 
     @Test

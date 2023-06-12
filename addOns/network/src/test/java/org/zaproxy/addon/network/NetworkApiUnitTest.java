@@ -368,7 +368,8 @@ class NetworkApiUnitTest extends TestUtils {
                 allOf(
                         containsString(CertificateUtils.BEGIN_CERTIFICATE_TOKEN),
                         containsString(
-                                "MIIC9TCCAl6gAwIBAgIJANL8E4epRNznMA0GCSqGSIb3DQEBBQUAMFsxGDAWBgNV\n"),
+                                "MIIC9TCCAl6gAwIBAgIJANL8E4epRNznMA0GCSqGSIb3DQEBBQUAMFsxGDAWBgNV"
+                                        + System.lineSeparator()),
                         containsString(CertificateUtils.END_CERTIFICATE_TOKEN),
                         not(containsString(CertificateUtils.BEGIN_PRIVATE_KEY_TOKEN))));
         assertThat(apiMessage, is(sameInstance(message)));
