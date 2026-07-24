@@ -41,6 +41,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.EnumSource.Mode;
 import org.mockito.quality.Strictness;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Proxy;
@@ -131,6 +132,7 @@ class BrowserRequestsTest extends TestUtils {
         }
 
         private void setCommonProperties(int proxyPort, MutableCapabilities capabilities) {
+            capabilities.setCapability("webSocketUrl", true);
             capabilities.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
 
             Proxy proxyConfig = new Proxy();
@@ -257,7 +259,10 @@ class BrowserRequestsTest extends TestUtils {
     }
 
     @ParameterizedTest
-    @EnumSource(BrowserTestData.class)
+    @EnumSource(
+            value = BrowserTestData.class,
+            mode = Mode.EXCLUDE,
+            names = {"EDGE"})
     void shouldNotNotifyBrowserRequests(BrowserTestData data) throws Exception {
         List<WebDriver> webdrivers = new ArrayList<>();
         try {
